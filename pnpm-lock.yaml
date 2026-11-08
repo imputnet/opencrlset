@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@imput/cup2':
-        specifier: jsr:^0.1.0
-        version: '@jsr/imput__cup2@0.1.0'
       csv-parse:
         specifier: ^7.0.3
         version: 7.0.3
@@ -93,9 +90,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@jsr/imput__cup2@0.1.0':
-    resolution: {integrity: sha512-2kM5G7lqtHpqR+jz4ptxthTeJ1PqJ92Xw240BCBZUkzuxzo2mDsyzgAhSmSEUm0y5aDb0n3/7v566KZFj2mm+A==, tarball: https://npm.jsr.io/~/11/@jsr/imput__cup2/0.1.0.tgz}
 
   '@oxc-project/types@0.155.0':
     resolution: {integrity: sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==}
@@ -974,8 +968,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
-
-  '@jsr/imput__cup2@0.1.0': {}
 
   '@oxc-project/types@0.155.0': {}
 

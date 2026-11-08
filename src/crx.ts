@@ -1,14 +1,13 @@
-// CRX3 files, written and checked the way Chromium's components/crx_file does:
+// CRX3 files, checked the way Chromium's components/crx_file does, for the
+// official CRLSet. opencrlset's own CRXs are packed by omaha-publish.
 //
 //   "Cr24" | uint32le 3 | uint32le header_size | CrxFileHeader | zip archive
 //
 // The header is a protobuf. Each proof signs, with RSA PKCS#1 v1.5 or ECDSA
 // over SHA-256: "CRX3 SignedData\0" | uint32le size | SignedData | archive.
-// RSA PKCS#1 v1.5 signatures are deterministic, so one key and one archive
-// always make the same file.
 
-import { createPublicKey, sign, verify, type KeyObject } from "node:crypto";
-import { PbfReader, PbfWriter } from "pbf";
+import { createPublicKey, verify } from "node:crypto";
+import { PbfReader } from "pbf";
 import { sha256 } from "./x509.ts";
 
 const MAGIC = Buffer.from("Cr24", "latin1");
@@ -58,17 +57,6 @@ const uint32 = (value: number) => {
   return buffer;
 };
 
-// A protobuf message of bytes fields. Protobuf writes fields in number order,
-// and so must we, for the bytes Chromium would produce.
-function message(fields: [number, Buffer][]): Buffer {
-  const writer = new PbfWriter();
-
-  for (const [field, value] of fields) writer.writeBytesField(field, value);
-  const bytes = writer.finish();
-
-  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-}
-
 const LENGTH_DELIMITED = 2;
 
 // The bytes fields of a protobuf message, in order; other fields are skipped.
@@ -89,33 +77,6 @@ function readFields(bytes: Buffer): { field: number; value: Buffer }[] {
 
 const signedMessage = (signedHeaderData: Buffer, archive: Buffer) =>
   Buffer.concat([SIGNATURE_CONTEXT, uint32(signedHeaderData.length), signedHeaderData, archive]);
-
-export function packCrx(archive: Buffer, key: KeyObject): Buffer {
-  if (key.asymmetricKeyType !== "rsa")
-    throw new Error("CRX signing needs an RSA key, for deterministic signatures");
-  const spki = createPublicKey(key).export({ type: "spki", format: "der" });
-  const signedHeaderData = message([[FIELD.crxId, sha256(spki).subarray(0, 16)]]);
-  const signature = sign("sha256", signedMessage(signedHeaderData, archive), key);
-
-  const proof = message([
-    [FIELD.publicKey, spki],
-    [FIELD.signature, signature],
-  ]);
-
-  const header = message([
-    [FIELD.sha256WithRsa, proof],
-    [FIELD.signedHeaderData, signedHeaderData],
-  ]);
-
-  if (FORBIDDEN_IN_HEADER.some((marker) => header.includes(marker))) {
-    // odds are about one in a few million per signature
-    throw new Error(
-      "CRX header happens to contain a zip end-of-directory marker, which Chromium refuses",
-    );
-  }
-
-  return Buffer.concat([MAGIC, uint32(3), uint32(header.length), header, archive]);
-}
 
 export function parseCrx(bytes: Buffer): Crx {
   if (bytes.length < 12 || !bytes.subarray(0, 4).equals(MAGIC)) throw new Error("not a CRX file");

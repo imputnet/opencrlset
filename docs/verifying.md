@@ -32,12 +32,16 @@ curl -sL "$base/SHA256SUMS" \
 
 ## CRXs
 
-`crx/` needs the signing key to rebuild, so check it instead:
+`crx/` needs the signing key to rebuild, so check it instead, with
+[omaha-publish][] (`cargo install omaha-publish`): it must be signed by
+opencrlset's key and pack exactly the files you rebuilt.
 
 ```sh
 for tier in standard priority all; do
   curl -sLO "$base/crx/$tier.crx3"
-  node src/cli.ts crx-verify $tier.crx3 --files out/crlset/$tier
+  omaha-publish verify --stored --files out/crlset/$tier \
+    --key-hash 404e7a7dc2e3c2320907eb41f3e35d25f795a028a076fff84d54f731018abf68 \
+    $tier.crx3
 done
 ```
 
@@ -48,3 +52,4 @@ fetched, and stores it under its SHA-256, so the inputs can be checked
 against the CAs' servers.
 
 [attestation]: https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations
+[omaha-publish]: https://crates.io/crates/omaha-publish

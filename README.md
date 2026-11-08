@@ -5,8 +5,9 @@ built only from public data.
 
 Builds run every 6 hours into [crls.helium.computer][site], under
 `builds/<sequence>/`. The newest is copied to `latest/`, and
-[`latest.json`][latest] points to it. The [explorer][] looks up a
-serial or certificate in the newest build.
+[`latest.json`][latest] points to it. Each tier is also an update feed
+under `feed/<tier>/`, for Chromium's component updater. The [explorer][]
+looks up a serial or certificate in the newest build.
 
 - using it in a browser, or shipping it in one: [integration.md][]
 - checking a build is genuine, or rebuilding it: [verifying.md][]
@@ -40,9 +41,6 @@ Not sure? Use `standard`. It's the one compared against Google's.
   CRLSet
 - `crx/<tier>.crx3`: every tier as a signed CRX3, for Chromium's
   component updater
-- `crx/<tier>.json`: what an update server needs: version, hashes,
-  patches
-- `crx/<tier>/<sha256>.puff`: patches from the last day's CRXs
 - `google/`: the official CRLSet this build was compared against
 - `snapshot.tar.zst`: the exact inputs: CCADB reports, every fetched CRL
   and the fetch log

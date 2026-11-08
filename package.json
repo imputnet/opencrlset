@@ -23,7 +23,6 @@
     "site": "pnpm --filter opencrlset-site"
   },
   "dependencies": {
-    "@imput/cup2": "jsr:^0.1.0",
     "csv-parse": "^7.0.3",
     "fflate": "^0.8.3",
     "pbf": "^5.1.2"
