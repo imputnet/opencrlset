@@ -24,10 +24,6 @@ jobs:
       R2_BUCKET: ${{ vars.R2_BUCKET }}
       R2_ENDPOINT_URL: ${{ vars.R2_ENDPOINT_URL }}
       R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
-      # secrets can't be tested in `if:`, so expose only whether it's set
-      HAS_CRX_KEY: ${{ secrets.CRX_SIGNING_KEY != '' }}
-      HAS_INDEX_KEY: ${{ secrets.INDEX_SIGNING_KEY != '' }}
-      OMAHA_PUBLISH_VERSION: 0.1.2
     steps:
       - uses: actions/checkout@v7
       # version from package.json's packageManager
@@ -67,38 +63,6 @@ jobs:
             mkdir -p out/google
             cp google/crl-set google/source.json out/google/
           fi
-
-      - name: restore omaha-publish
-        if: env.HAS_CRX_KEY == 'true'
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/bin/omaha-publish
-          key: omaha-publish-${{ env.OMAHA_PUBLISH_VERSION }}-${{ runner.os }}-${{ runner.arch }}
-
-      - name: install omaha-publish
-        if: env.HAS_CRX_KEY == 'true'
-        run: |
-          command -v omaha-publish >/dev/null ||
-            cargo install --locked omaha-publish --version "$OMAHA_PUBLISH_VERSION"
-
-      - name: package crx
-        if: env.HAS_CRX_KEY == 'true'
-        env:
-          CRX_SIGNING_KEY: ${{ secrets.CRX_SIGNING_KEY }}
-        run: |
-          key=$(mktemp)
-          trap 'rm -f "$key"' EXIT
-          printf '%s\n' "$CRX_SIGNING_KEY" > "$key"
-          mkdir -p out/crx
-          for tier in standard priority all; do
-            omaha-publish pack --key "$key" --stored "out/crlset/$tier" "out/crx/$tier.crx3"
-          done
-
-      - name: build puffin
-        id: puffin
-        if: env.HAS_CRX_KEY == 'true' && env.HAS_INDEX_KEY == 'true'
-        continue-on-error: true
-        uses: ./.github/actions/puffin
 
       - name: archive snapshot
         run: |
@@ -149,24 +113,3 @@ jobs:
             jq '{sequence, snapshotTime, crls, tiers, google: (.google // {} | del(.perIssuer, .unknownIssuers))}' out/report.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: publish feeds
-        if: env.HAS_CRX_KEY == 'true' && env.HAS_INDEX_KEY == 'true'
-        env:
-          INDEX_SIGNING_KEY: ${{ secrets.INDEX_SIGNING_KEY }}
-          PUFFIN: ${{ steps.puffin.outcome == 'success' && steps.puffin.outputs.path || '' }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-          AWS_ENDPOINT_URL: ${{ vars.R2_ENDPOINT_URL }}
-        run: |
-          key=$(mktemp)
-          trap 'rm -f "$key"' EXIT
-          printf '%s\n' "$INDEX_SIGNING_KEY" > "$key"
-          args=()
-          if [ -n "$PUFFIN" ]; then args+=(--puffin "$PUFFIN"); fi
-          # builds run every 6 hours, so patches cover the last day
-          for tier in standard priority all; do
-            omaha-publish publish --store "s3://$R2_BUCKET/feed/$tier" --key "$key" \
-              --keep 8 --patch-from 4 "${args[@]}" "out/crx/$tier.crx3"
-          done
