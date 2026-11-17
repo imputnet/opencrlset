@@ -103,11 +103,25 @@ jobs:
             echo "::error::missing r2 configuration"
             exit 1
           fi
-          s3() { aws s3 "$@" --endpoint-url "$R2_ENDPOINT_URL" --no-progress --only-show-errors; }
+          # r2 takes about one write a second per key, so the parallel parts
+          # of a multipart upload get throttled, and completing it can fail
+          # with InvalidPart. every file fits in a single put.
+          aws configure set default.s3.multipart_threshold 4GB
+          # syncs pick up where a failed attempt stopped
+          s3() {
+            for attempt in 1 2 3; do
+              if [ "$attempt" != 1 ]; then
+                echo "::warning::retrying aws s3 $1 $2"
+                sleep 30
+              fi
+              aws s3 "$@" --endpoint-url "$R2_ENDPOINT_URL" --no-progress --only-show-errors && return
+            done
+            return 1
+          }
           sequence=$(jq -r .sequence out/report.json)
           # immutable build first (explorer/ is derived and only kept for
           # latest), then the moving "latest" copies, the site, index last
-          s3 cp out/ "s3://$R2_BUCKET/builds/$sequence/" --recursive --exclude 'explorer/*' \
+          s3 sync out/ "s3://$R2_BUCKET/builds/$sequence/" --exclude 'explorer/*' \
             --cache-control 'public, max-age=31536000, immutable'
           s3 sync out/ "s3://$R2_BUCKET/latest/" --delete --exclude snapshot.tar.zst --cache-control max-age=300
           s3 sync site/build/_app/ "s3://$R2_BUCKET/_app/" --cache-control 'public, max-age=31536000, immutable'
