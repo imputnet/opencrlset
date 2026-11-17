@@ -79,7 +79,15 @@ jobs:
           node src/cli.ts index out > latest.json
           node src/cli.ts history out/report.json "${R2_PUBLIC_URL%/}/history.json" > history.json
 
-      - uses: actions/attest-build-provenance@v4
+      - id: attest
+        uses: actions/attest-build-provenance@v4
+        continue-on-error: true
+        with:
+          subject-checksums: out/SHA256SUMS
+
+      # the transparency log sometimes answers 500
+      - if: steps.attest.outcome == 'failure'
+        uses: actions/attest-build-provenance@v4
         with:
           subject-checksums: out/SHA256SUMS
 
